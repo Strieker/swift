@@ -281,6 +281,10 @@ enum class FixKind : uint8_t {
 
   /// Resolve type of `nil` by providing a contextual type.
   SpecifyContextualTypeForNil,
+    
+  /// Provides wrappedValue type of a composed property wrapper when
+  /// a type mismatch for a composed property wrapper occurs.
+  ComposedPropertyWrapperType,
 };
 
 class ConstraintFix {
@@ -545,6 +549,22 @@ public:
 
   static ContextualMismatch *create(ConstraintSystem &cs, Type lhs, Type rhs,
                                     ConstraintLocator *locator);
+};
+
+class ComposedPropertyWrapperType : public ContextualMismatch {
+
+protected:
+  ComposedPropertyWrapperType(ConstraintSystem &cs, Type lhs, Type rhs,
+                     ConstraintLocator *locator)
+    : ContextualMismatch(cs, FixKind::ComposedPropertyWrapperType, lhs, rhs, locator) {}
+
+public:
+  std::string getName() const override { return "fix composed property wrapper type mismatch"; }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  static ComposedPropertyWrapperType *create(ConstraintSystem &cs, Type lhs, Type rhs,
+                                   ConstraintLocator *locator);
 };
 
 /// Mark function type as explicitly '@escaping'.
