@@ -4234,6 +4234,11 @@ bool ConstraintSystem::repairFailures(
 
     break;
   }
+          
+  case ConstraintLocator::ComposedPropertyWrapperType: {
+    conversionsOrFixes.push_back(ComposedPropertyWrapperType::create(*this, lhs, rhs, getConstraintLocator(locator)));
+    break;
+  }
 
   case ConstraintLocator::FunctionArgument: {
     auto *argLoc = getConstraintLocator(
@@ -10864,6 +10869,11 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
       }
     }
 
+    return SolutionKind::Solved;
+  }
+          
+  case FixKind::ComposedPropertyWrapperType: {
+    if (recordFix(fix)) return SolutionKind::Error;
     return SolutionKind::Solved;
   }
 
