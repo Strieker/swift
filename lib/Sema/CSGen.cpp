@@ -3591,7 +3591,7 @@ static bool generateWrappedPropertyTypeConstraints(
    Type propertyType) {
   auto dc = wrappedVar->getInnermostDeclContext();
 
-  Type wrapperType = LValueType::get(initializerType);
+  Type wrapperType = initializerType;
   Type wrappedValueType;
 
   auto wrapperAttributes = wrappedVar->getAttachedPropertyWrappers();
@@ -3607,13 +3607,10 @@ static bool generateWrappedPropertyTypeConstraints(
     // The former wrappedValue type must be equal to the current wrapper type
     if (wrappedValueType) {
       auto *typeRepr = wrapperAttributes[i]->getTypeRepr();
-      auto *locator =
-          cs.getConstraintLocator(typeRepr, LocatorPathElt::ContextualType());
+      auto *locator = cs.getConstraintLocator(typeRepr, LocatorPathElt::ComposedPropertyWrapperType(wrapperType.getPointer()));
       wrapperType = cs.openUnboundGenericTypes(rawWrapperType, locator);
       cs.addConstraint(ConstraintKind::Equal, wrapperType, wrappedValueType,
-                       locator);
-      cs.setContextualType(typeRepr, TypeLoc::withoutLoc(wrappedValueType),
-                           CTP_ComposedPropertyWrapper);
+                         locator);
     }
 
     wrappedValueType = wrapperType->getTypeOfMember(
