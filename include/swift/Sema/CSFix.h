@@ -297,7 +297,7 @@ enum class FixKind : uint8_t {
     
   /// Provides wrappedValue type of a composed property wrapper when
   /// a type mismatch for a composed property wrapper occurs.
-    MarkExplicitlyEscapingComposedPropertyWrapperType,
+  ComposedPropertyWrapperType,
 };
 
 class ConstraintFix {
