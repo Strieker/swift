@@ -2237,3 +2237,5 @@ namespace llvm {
     }
   };
 }
+
+#endif // SWIFT_SEMA_CSFIX_H
