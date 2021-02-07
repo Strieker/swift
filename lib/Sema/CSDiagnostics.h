@@ -755,9 +755,9 @@ private:
   void offerForceUnwrapFixIt(const Expr *expr) const;
 };
 
-class ComposedPropertyWrapperTypeFailure final : public ContextualFailure {
+class WrappedValueMismatch final : public ContextualFailure {
 public:
-  ComposedPropertyWrapperTypeFailure(const Solution &solution, Type fromType,
+    WrappedValueMismatch(const Solution &solution, Type fromType,
                                    Type toType, ConstraintLocator *locator)
      : ContextualFailure(solution, fromType, toType, locator) {
   }

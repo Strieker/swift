@@ -348,9 +348,9 @@ bool RequirementFailure::isStaticOrInstanceMember(const ValueDecl *decl) {
   return decl->isStatic();
 }
 
-bool ComposedPropertyWrapperTypeFailure::diagnoseAsError() {
+bool WrappedValueMismatch::diagnoseAsError() {
   auto *locator = getLocator();
-  auto elt = locator->getLastElementAs<LocatorPathElt::ComposedPropertyWrapperType>();
+  auto elt = locator->getLastElementAs<LocatorPathElt::AllowWrappedValueMismatch>();
   emitDiagnostic(diag::composed_property_wrapper_mismatch, resolveType(getFromType()), elt->getType(), getToType());
   return true;
 }
@@ -654,7 +654,7 @@ Optional<Diag<Type, Type>> GenericArgumentsMismatchFailure::getDiagnosticFor(
   case CTP_YieldByReference:
   case CTP_CalleeResult:
   case CTP_EnumCaseRawValue:
-  case CTP_ComposedPropertyWrapper:
+  case CTP_AllowWrappedValueMismatch:
     break;
   }
   return None;
@@ -2371,7 +2371,7 @@ getContextualNilDiagnostic(ContextualTypePurpose CTP) {
   case CTP_ForEachStmt:
   case CTP_YieldByReference:
   case CTP_WrappedProperty:
-  case CTP_ComposedPropertyWrapper:
+  case CTP_AllowWrappedValueMismatch:
     return None;
 
   case CTP_EnumCaseRawValue:
@@ -3117,7 +3117,7 @@ ContextualFailure::getDiagnosticFor(ContextualTypePurpose context,
   case CTP_CannotFail:
   case CTP_YieldByReference:
   case CTP_CalleeResult:
-  case CTP_ComposedPropertyWrapper:
+  case CTP_AllowWrappedValueMismatch:
     break;
   }
   return None;

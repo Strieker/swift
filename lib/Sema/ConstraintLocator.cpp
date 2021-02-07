@@ -58,7 +58,7 @@ unsigned LocatorPathElt::getNewSummaryFlags() const {
   case ConstraintLocator::DynamicType:
   case ConstraintLocator::SubscriptMember:
   case ConstraintLocator::OpenedGeneric:
-  case ConstraintLocator::ComposedPropertyWrapperType:
+  case ConstraintLocator::AllowWrappedValueMismatch:
   case ConstraintLocator::GenericParameter:
   case ConstraintLocator::GenericArgument:
   case ConstraintLocator::NamedTupleElement:
@@ -181,8 +181,8 @@ bool ConstraintLocator::isForGenericParameter() const {
   return isLastElement<LocatorPathElt::GenericParameter>();
 }
 
-bool ConstraintLocator::isForComposedPropertyWrapperType() const {
-  return isLastElement<LocatorPathElt::ComposedPropertyWrapperType>();
+bool ConstraintLocator::isForAllowedWrappedValueMismatch() const {
+  return isLastElement<LocatorPathElt::AllowWrappedValueMismatch>();
 }
 
 bool ConstraintLocator::isForSequenceElementType() const {
@@ -215,9 +215,9 @@ GenericTypeParamType *ConstraintLocator::getGenericParameter() const {
       castLastElementTo<LocatorPathElt::GenericParameter>().getType() : nullptr;
 }
 
-TypeBase *ConstraintLocator::getComposedPropertyWrapperType() const {
-  return isForComposedPropertyWrapperType() ?
-    castLastElementTo<LocatorPathElt::ComposedPropertyWrapperType>().getType() : nullptr;
+TypeBase *ConstraintLocator::getAllowedWrappedValueMismatch() const {
+  return isForAllowedWrappedValueMismatch() ?
+    castLastElementTo<LocatorPathElt::AllowWrappedValueMismatch>().getType() : nullptr;
 }
 
 void ConstraintLocator::dump(SourceManager *sm) const {
@@ -272,8 +272,8 @@ void ConstraintLocator::dump(SourceManager *sm, raw_ostream &out) const {
       out << "generic parameter '" << gpElt.getType()->getString(PO) << "'";
       break;
     }
-    case ComposedPropertyWrapperType: {
-      auto gpElt = elt.castTo<LocatorPathElt::ComposedPropertyWrapperType>();
+    case AllowWrappedValueMismatch: {
+      auto gpElt = elt.castTo<LocatorPathElt::AllowWrappedValueMismatch>();
       out << "composed property wrapper type '" << gpElt.getType()->getString(PO) << "'";
       break;
     }

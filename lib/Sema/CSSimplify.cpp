@@ -4142,8 +4142,8 @@ bool ConstraintSystem::repairFailures(
     break;
   }
           
-  case ConstraintLocator::ComposedPropertyWrapperType: {
-    conversionsOrFixes.push_back(ComposedPropertyWrapperType::create(*this, lhs, rhs, getConstraintLocator(locator)));
+  case ConstraintLocator::AllowWrappedValueMismatch: {
+    conversionsOrFixes.push_back(AllowWrappedValueMismatch::create(*this, lhs, rhs, getConstraintLocator(locator)));
     break;
   }
 
@@ -10463,7 +10463,7 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
     return SolutionKind::Solved;
   }
           
-  case FixKind::ComposedPropertyWrapperType: {
+  case FixKind::AllowWrappedValueMismatch: {
     if (recordFix(fix)) return SolutionKind::Error;
     return SolutionKind::Solved;
   }
@@ -10839,7 +10839,7 @@ void ConstraintSystem::addContextualConversionConstraint(
   case CTP_SubscriptAssignSource:
   case CTP_ForEachStmt:
   case CTP_WrappedProperty:
-  case CTP_ComposedPropertyWrapper:
+  case CTP_AllowWrappedValueMismatch:
     break;
   }
 

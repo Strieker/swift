@@ -297,7 +297,7 @@ enum class FixKind : uint8_t {
     
   /// Provides wrappedValue type of a composed property wrapper when
   /// a type mismatch for a composed property wrapper occurs.
-  ComposedPropertyWrapperType,
+  AllowWrappedValueMismatch,
 };
 
 class ConstraintFix {
@@ -583,19 +583,19 @@ public:
                                                ConstraintLocator *loc);
 };
 
-class ComposedPropertyWrapperType : public ContextualMismatch {
+class AllowWrappedValueMismatch : public ContextualMismatch {
 
 protected:
-  ComposedPropertyWrapperType(ConstraintSystem &cs, Type lhs, Type rhs,
+    AllowWrappedValueMismatch(ConstraintSystem &cs, Type lhs, Type rhs,
                      ConstraintLocator *locator)
-    : ContextualMismatch(cs, FixKind::ComposedPropertyWrapperType, lhs, rhs, locator) {}
+    : ContextualMismatch(cs, FixKind::AllowWrappedValueMismatch, lhs, rhs, locator) {}
 
 public:
-  std::string getName() const override { return "fix composed property wrapper type mismatch"; }
+  std::string getName() const override { return "fix wrapped value type mismatch"; }
 
   bool diagnose(const Solution &solution, bool asNote = false) const override;
 
-  static ComposedPropertyWrapperType *create(ConstraintSystem &cs, Type lhs, Type rhs,
+  static AllowWrappedValueMismatch *create(ConstraintSystem &cs, Type lhs, Type rhs,
                                    ConstraintLocator *locator);
 };
 
