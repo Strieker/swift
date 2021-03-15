@@ -756,6 +756,16 @@ private:
   void offerForceUnwrapFixIt(const Expr *expr) const;
 };
 
+class ComposedPropertyWrapperTypeFailure final : public ContextualFailure {
+public:
+  ComposedPropertyWrapperTypeFailure(const Solution &solution, Type fromType,
+                                   Type toType, ConstraintLocator *locator)
+     : ContextualFailure(solution, fromType, toType, locator) {
+  }
+    
+  bool diagnoseAsError() override;
+};
+
 /// Diagnostics for mismatched generic arguments e.g
 /// ```swift
 /// struct F<G> {}
