@@ -617,20 +617,18 @@ public:
                                                ConstraintLocator *loc);
 };
 
-class ComposedPropertyWrapperType : public ContextualMismatch {
-
-protected:
-  ComposedPropertyWrapperType(ConstraintSystem &cs, Type lhs, Type rhs,
-                     ConstraintLocator *locator)
-    : ContextualMismatch(cs, FixKind::ComposedPropertyWrapperType, lhs, rhs, locator) {}
+class AllowWrappedValueMismatch : public ContextualMismatch {
+  AllowWrappedValueMismatch(ConstraintSystem &cs, Type lhs, Type rhs,
+                            ConstraintLocator *locator)
+      : ContextualMismatch(cs, FixKind::AllowWrappedValueMismatch, lhs, rhs, locator) {}
 
 public:
-  std::string getName() const override { return "fix composed property wrapper type mismatch"; }
+  std::string getName() const override { return "fix wrapped value type mismatch"; }
 
   bool diagnose(const Solution &solution, bool asNote = false) const override;
 
-  static ComposedPropertyWrapperType *create(ConstraintSystem &cs, Type lhs, Type rhs,
-                                   ConstraintLocator *locator);
+  static AllowWrappedValueMismatch *create(ConstraintSystem &cs, Type lhs, Type rhs,
+                                           ConstraintLocator *locator);
 };
 
 /// Mark function type as explicitly '@escaping'.

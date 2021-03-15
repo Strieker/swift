@@ -58,7 +58,7 @@ unsigned LocatorPathElt::getNewSummaryFlags() const {
   case ConstraintLocator::DynamicType:
   case ConstraintLocator::SubscriptMember:
   case ConstraintLocator::OpenedGeneric:
-  case ConstraintLocator::ComposedPropertyWrapperType:
+  case ConstraintLocator::WrappedValue:
   case ConstraintLocator::GenericParameter:
   case ConstraintLocator::GenericArgument:
   case ConstraintLocator::NamedTupleElement:
@@ -182,8 +182,8 @@ bool ConstraintLocator::isForGenericParameter() const {
   return isLastElement<LocatorPathElt::GenericParameter>();
 }
 
-bool ConstraintLocator::isForComposedPropertyWrapperType() const {
-  return isLastElement<LocatorPathElt::ComposedPropertyWrapperType>();
+bool ConstraintLocator::isForWrappedValue() const {
+  return isLastElement<LocatorPathElt::WrappedValue>();
 }
 
 bool ConstraintLocator::isForSequenceElementType() const {
@@ -216,9 +216,9 @@ GenericTypeParamType *ConstraintLocator::getGenericParameter() const {
       castLastElementTo<LocatorPathElt::GenericParameter>().getType() : nullptr;
 }
 
-TypeBase *ConstraintLocator::getComposedPropertyWrapperType() const {
-  return isForComposedPropertyWrapperType() ?
-    castLastElementTo<LocatorPathElt::ComposedPropertyWrapperType>().getType() : nullptr;
+TypeBase *ConstraintLocator::getWrappedValue() const {
+  return isForWrappedValue() ?
+      castLastElementTo<LocatorPathElt::WrappedValue>().getType() : nullptr;
 }
 
 void ConstraintLocator::dump(SourceManager *sm) const {
@@ -273,9 +273,9 @@ void ConstraintLocator::dump(SourceManager *sm, raw_ostream &out) const {
       out << "generic parameter '" << gpElt.getType()->getString(PO) << "'";
       break;
     }
-    case ComposedPropertyWrapperType: {
-      auto gpElt = elt.castTo<LocatorPathElt::ComposedPropertyWrapperType>();
-      out << "composed property wrapper type '" << gpElt.getType()->getString(PO) << "'";
+    case WrappedValue: {
+      auto wrappedValueElt = elt.castTo<LocatorPathElt::WrappedValue>();
+      out << "composed property wrapper type '" << wrappedValueElt.getType()->getString(PO) << "'";
       break;
     }
     case ApplyArgument:
