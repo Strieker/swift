@@ -3597,7 +3597,7 @@ static bool generateWrappedPropertyTypeConstraints(
     if (wrappedValueType) {
       auto *typeRepr = wrapperAttributes[i]->getTypeRepr();
       auto *locator = cs.getConstraintLocator(typeRepr, LocatorPathElt::WrappedValue(wrapperType.getPointer()));
-      wrapperType = cs.openUnboundGenericTypes(rawWrapperType, locator);
+      wrapperType = cs.replaceInferableTypesWithTypeVars(rawWrapperType, locator);
       cs.addConstraint(ConstraintKind::Equal, wrapperType, wrappedValueType,
                          locator);
     }

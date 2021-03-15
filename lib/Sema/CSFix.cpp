@@ -372,15 +372,16 @@ ContextualMismatch *ContextualMismatch::create(ConstraintSystem &cs, Type lhs,
   return new (cs.getAllocator()) ContextualMismatch(cs, lhs, rhs, locator);
 }
 
-bool ComposedPropertyWrapperType::diagnose(const Solution &solution, bool asError) const {
-  ComposedPropertyWrapperTypeFailure failure(solution, getFromType(), getToType(), getLocator());
+bool AllowWrappedValueMismatch::diagnose(const Solution &solution, bool asError) const {
+  WrappedValueMismatch failure(solution, getFromType(), getToType(), getLocator());
   return(failure.diagnoseAsError());
 }
 
-ComposedPropertyWrapperType *ComposedPropertyWrapperType::create(ConstraintSystem &cs, Type lhs,
-                                               Type rhs,
-                                               ConstraintLocator *locator) {
-  return new (cs.getAllocator()) ComposedPropertyWrapperType(cs, lhs, rhs, locator);
+AllowWrappedValueMismatch *AllowWrappedValueMismatch::create(ConstraintSystem &cs,
+                                                             Type lhs,
+                                                             Type rhs,
+                                                             ConstraintLocator *locator) {
+  return new (cs.getAllocator()) AllowWrappedValueMismatch(cs, lhs, rhs, locator);
 }
 
 
