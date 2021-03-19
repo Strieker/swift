@@ -348,10 +348,12 @@ bool RequirementFailure::isStaticOrInstanceMember(const ValueDecl *decl) {
   return decl->isStatic();
 }
 
-bool ComposedPropertyWrapperTypeFailure::diagnoseAsError() {
+bool WrappedValueMismatch::diagnoseAsError() {
   auto *locator = getLocator();
-  auto elt = locator->getLastElementAs<LocatorPathElt::ComposedPropertyWrapperType>();
-  emitDiagnostic(diag::composed_property_wrapper_mismatch, getFromType(), elt->getType(), getToType());
+  auto elt = locator->getLastElementAs<LocatorPathElt::WrappedValue>();
+    
+  emitDiagnostic(diag::composed_property_wrapper_mismatch, resolveType(getFromType()), elt->getType(), getToType());
+    
   return true;
 }
 
