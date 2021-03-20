@@ -323,7 +323,7 @@ enum class FixKind : uint8_t {
   /// Allow the wrappedValue type of the outermost property
   /// wrapper of a composed property wrapper to mismatch
   /// the type of its innermost property wrapper.
-  AllowWrappedValueMismatch,
+  ComposedPropertyWrapperType,
 };
 
 class ConstraintFix {

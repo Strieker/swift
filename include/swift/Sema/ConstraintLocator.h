@@ -207,6 +207,9 @@ public:
   /// Determine whether this locator points to the generic parameter.
   bool isForGenericParameter() const;
 
+  /// Determine whether this locator points to the composed property wrapper type.
+  bool isForComposedPropertyWrapperType() const;
+    
   /// Determine whether this locator points to the element type of a
   /// sequence in a for ... in ... loop.
   bool isForSequenceElementType() const;
@@ -350,6 +353,9 @@ public:
 
   /// If this locator points to generic parameter return its type.
   GenericTypeParamType *getGenericParameter() const;
+
+  /// If this locator points to composed property wrapper type return its type.
+  TypeBase *getComposedPropertyWrapperType() const;
 
   /// Produce a profile of this locator, for use in a folding set.
   static void Profile(llvm::FoldingSetNodeID &id, ASTNode anchor,
@@ -684,6 +690,21 @@ public:
 
   static bool classof(const LocatorPathElt *elt) {
     return elt->getKind() == PathElementKind::GenericParameter;
+  }
+};
+
+class LocatorPathElt::ComposedPropertyWrapperType final : public StoredPointerElement<TypeBase> {
+public:
+  ComposedPropertyWrapperType(TypeBase *type)
+    : StoredPointerElement(PathElementKind::ComposedPropertyWrapperType, type) {
+  }
+
+  TypeBase *getType() const {
+    return getStoredPointer();
+  }
+
+  static bool classof(const LocatorPathElt *elt) {
+    return elt->getKind() == PathElementKind::ComposedPropertyWrapperType;
   }
 };
 
