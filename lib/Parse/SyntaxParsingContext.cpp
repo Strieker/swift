@@ -88,8 +88,14 @@ size_t SyntaxParsingContext::lookupNode(size_t LexerOffset, SourceLoc Loc) {
     return 0;
   }
   Mode = AccumulationMode::SkippedForIncrementalUpdate;
+<<<<<<< HEAD
   getStorage().push_back(std::move(foundNode.Node));
   return foundNode.Length;
+=======
+  auto length = foundNode.getRange().getByteLength();
+  getStorage().push_back(std::move(foundNode));
+  return length;
+>>>>>>> 6855d2140de... [libSyntax] Store Range of ParsedRawSyntaxNode in dedicated field
 }
 
 ParsedRawSyntaxNode

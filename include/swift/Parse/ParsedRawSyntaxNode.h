@@ -1,4 +1,4 @@
-//===--- ParsedRawSyntaxNode.h - Parsed Raw Syntax Node ---------*- C++ -*-===//
+//===--- ParsedRawSyntaxRecorder.h - Raw Syntax Parsing Recorder ----------===//
 //
 // This source file is part of the Swift.org open source project
 //
@@ -9,249 +9,226 @@
 // See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
+//
+// This file defines the ParsedRawSyntaxRecorder, which is the interface the
+// parser is using to pass parsed syntactic elements to a SyntaxParseActions
+// receiver and get a ParsedRawSyntaxNode object back.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef SWIFT_PARSE_PARSEDRAWSYNTAXNODE_H
-#define SWIFT_PARSE_PARSEDRAWSYNTAXNODE_H
+#ifndef SWIFT_PARSE_PARSEDRAWSYNTAXRECORDER_H
+#define SWIFT_PARSE_PARSEDRAWSYNTAXRECORDER_H
 
-#include "swift/Basic/Debug.h"
-#include "swift/Basic/SourceLoc.h"
-#include "swift/Parse/ParsedTrivia.h"
+#include "swift/Basic/LLVM.h"
+#include "swift/Parse/ParsedRawSyntaxNode.h"
 #include "swift/Parse/SyntaxParseActions.h"
-#include "swift/Parse/Token.h"
-#include "swift/Syntax/SyntaxKind.h"
-#include "llvm/Support/Debug.h"
+#include "swift/SyntaxParse/SyntaxTreeCreator.h"
+#include <memory>
 
-#ifndef NDEBUG
-/// Whether \c ParsedRawSyntaxNode should keep track of its range and verify
-/// that the children of layout nodes have consecutive ranges.
-/// Because this significantly changes the way, \c ParsedRawSyntaxNode and
-/// \c ParsedRawSyntaxNodeRecorder are being compiled, this is a separate
-/// constant from \c NDEBUG, so that it can be toggled independently to \c
-/// NDEBUG during development.
-#define PARSEDRAWSYNTAXNODE_VERIFY_RANGES 1
+/// Define a macro that creates a \c ParsedRawSyntaxNode. If \c
+/// PARSEDRAWSYNTAXNODE_VERIFY_RANGES is defined, it passes the \c Range
+/// parameter, otherwise it ignores it at the pre-processor level, which means
+/// that \c Range can be an invalid expression.
+#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
+#define makeParsedRawSyntaxNode(Opaque, SynKind, TokKind, DataKind, IsMissing, \
+                                Range)                                         \
+  ParsedRawSyntaxNode(Opaque, SynKind, TokKind, DataKind, IsMissing, Range)
+#else
+#define makeParsedRawSyntaxNode(Opaque, SynKind, TokKind, DataKind, IsMissing, \
+                                Range)                                         \
+  ParsedRawSyntaxNode(Opaque, SynKind, TokKind, DataKind, IsMissing)
 #endif
 
 namespace swift {
 
+class CharSourceRange;
+struct ParsedTrivia;
+class ParsedTriviaPiece;
+class SyntaxParseActions;
 class SyntaxParsingContext;
+class SourceLoc;
+class Token;
+enum class tok : uint8_t;
 
-/// Represents a raw syntax node formed by the parser.
-///
-/// It can be either 'recorded', in which case it encapsulates an
-/// \c OpaqueSyntaxNode that was returned from a \c SyntaxParseActions
-/// invocation, or 'deferred' which captures the data for a
-/// \c SyntaxParseActions invocation to occur later.
-///
-/// An \c OpaqueSyntaxNode can represent both the result of 'recording' a token
-/// as well as 'recording' a syntax layout, so there's only one
-/// \c RecordedSyntaxNode structure that can represent both.
-///
-/// The 'deferred' form is used for when the parser is backtracking and when
-/// there are instances that it's not clear what will be the final syntax node
-/// in the current parsing context.
-class ParsedRawSyntaxNode {
-  friend class ParsedRawSyntaxRecorder;
-  using DataKind = RecordedOrDeferredNode::Kind;
+namespace syntax {
+enum class SyntaxKind : uint16_t;
+}
 
-  /// The opaque data of this node. Needs to be interpreted by the \c
-  /// SyntaxParseActions, which created it.
-  RecordedOrDeferredNode Data;
+/// The information returned from the \c lookupNode method in \c
+/// SyntaxParseActions.
+struct ParseLookupResult {
+  ParsedRawSyntaxNode Node;
 
-#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-  /// The range of this node, including trivia.
-  /// Only store this as a member when it's actually needed to keep \c
-  /// ParsedRawSyntaxNode as small as possible, which improves performance
-  /// when it is being passed around.
-  CharSourceRange Range;
-#endif
-  uint16_t SynKind;
-  uint16_t TokKind;
-  /// Primary used for capturing a deferred missing token.
-  bool IsMissing = false;
+  /// The length of \c Node spelled out in source, including trivia.
+  size_t Length;
 
-  ParsedRawSyntaxNode(const ParsedRawSyntaxNode &other) = delete;
-  ParsedRawSyntaxNode &operator=(const ParsedRawSyntaxNode &other) = delete;
+  ParseLookupResult(ParsedRawSyntaxNode &&Node, size_t Length)
+      : Node(std::move(Node)), Length(Length) {}
+};
+
+class ParsedRawSyntaxRecorder final {
+  std::shared_ptr<SyntaxParseActions> SPActions;
+
+  /// Assuming that \p node is a deferred layout or token node, record it and
+  /// return the recorded node.
+  /// This consumes the data from \c node, which is unusable after it has been
+  /// recorded. The returned node should be used afterwards instead.
+  ParsedRawSyntaxNode recordDeferredNode(ParsedRawSyntaxNode &node) {
+    switch (node.getDataKind()) {
+    case RecordedOrDeferredNode::Kind::Null:
+    case RecordedOrDeferredNode::Kind::Recorded:
+      llvm_unreachable("Not deferred");
+    case RecordedOrDeferredNode::Kind::DeferredLayout: {
+      OpaqueSyntaxNode Data = SPActions->recordDeferredLayout(node.takeData());
+      return makeParsedRawSyntaxNode(Data, node.getKind(), node.getTokenKind(),
+                                     ParsedRawSyntaxNode::DataKind::Recorded,
+                                     node.isMissing(), node.getRange());
+    }
+    case RecordedOrDeferredNode::Kind::DeferredToken: {
+      OpaqueSyntaxNode Data = SPActions->recordDeferredToken(node.takeData());
+      return makeParsedRawSyntaxNode(Data, node.getKind(), node.getTokenKind(),
+                                     ParsedRawSyntaxNode::DataKind::Recorded,
+                                     node.isMissing(), node.getRange());
+    }
+    }
+  }
 
 public:
-  // MARK: - Constructors
+  explicit ParsedRawSyntaxRecorder(std::shared_ptr<SyntaxParseActions> spActions)
+    : SPActions(std::move(spActions)) {}
 
-  ParsedRawSyntaxNode()
-      : Data(nullptr, DataKind::Null),
-        SynKind(uint16_t(syntax::SyntaxKind::Unknown)),
-        TokKind(uint16_t(tok::unknown)) {}
-
-#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-  ParsedRawSyntaxNode(RecordedOrDeferredNode Data, syntax::SyntaxKind SynKind,
-                      tok TokKind, bool IsMissing, CharSourceRange Range)
-      : Data(Data), Range(Range), SynKind(uint16_t(SynKind)),
-        TokKind(uint16_t(TokKind)), IsMissing(IsMissing) {
-    assert(getKind() == SynKind && "Syntax kind with too large value!");
-    assert(getTokenKind() == TokKind && "Token kind with too large value!");
+  ParsedRawSyntaxNode recordToken(const Token &tok, StringRef leadingTrivia,
+                                  StringRef trailingTrivia) {
+    return recordToken(tok.getKind(), tok.getRange(), leadingTrivia,
+                       trailingTrivia);
   }
 
-  ParsedRawSyntaxNode(OpaqueSyntaxNode Opaque, syntax::SyntaxKind SynKind,
-                      tok TokKind, DataKind DK, bool IsMissing,
-                      CharSourceRange Range)
-      : ParsedRawSyntaxNode(RecordedOrDeferredNode(Opaque, DK), SynKind,
-                            TokKind, IsMissing, Range) {}
-#else
-  ParsedRawSyntaxNode(RecordedOrDeferredNode Data, syntax::SyntaxKind SynKind,
-                      tok TokKind, bool IsMissing)
-      : Data(Data), SynKind(uint16_t(SynKind)), TokKind(uint16_t(TokKind)),
-        IsMissing(IsMissing) {
-    assert(getKind() == SynKind && "Syntax kind with too large value!");
-    assert(getTokenKind() == TokKind && "Token kind with too large value!");
+  ParsedRawSyntaxNode recordToken(tok tokenKind, CharSourceRange tokenRange,
+                                  StringRef leadingTrivia,
+                                  StringRef trailingTrivia) {
+    SourceLoc offset =
+        tokenRange.getStart().getAdvancedLoc(-leadingTrivia.size());
+    unsigned length = leadingTrivia.size() + tokenRange.getByteLength() +
+                      trailingTrivia.size();
+    CharSourceRange range(offset, length);
+    OpaqueSyntaxNode n =
+        SPActions->recordToken(tokenKind, leadingTrivia, trailingTrivia, range);
+    return makeParsedRawSyntaxNode(n, syntax::SyntaxKind::Token, tokenKind,
+                                   ParsedRawSyntaxNode::DataKind::Recorded,
+                                   /*IsMissing=*/false, range);
   }
 
-  ParsedRawSyntaxNode(OpaqueSyntaxNode Opaque, syntax::SyntaxKind SynKind,
-                      tok TokKind, DataKind DK, bool IsMissing)
-      : ParsedRawSyntaxNode(RecordedOrDeferredNode(Opaque, DK), SynKind,
-                            TokKind, IsMissing) {}
-#endif
+  /// Record a missing token. \p loc can be invalid or an approximate location
+  /// of where the token would be if not missing.
+  ParsedRawSyntaxNode recordMissingToken(tok tokenKind, SourceLoc loc);
 
-  ParsedRawSyntaxNode &operator=(ParsedRawSyntaxNode &&other) {
-    assert(ensureDataIsNotRecorded() &&
-           "recorded data is being destroyed by assignment");
-    Data = std::move(other.Data);
-#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-    Range = std::move(other.Range);
-#endif
-    SynKind = std::move(other.SynKind);
-    TokKind = std::move(other.TokKind);
-    IsMissing = std::move(other.IsMissing);
-    other.reset();
-    return *this;
-  }
-
-  ParsedRawSyntaxNode(ParsedRawSyntaxNode &&other) : ParsedRawSyntaxNode() {
-    *this = std::move(other);
-  }
-
-  static ParsedRawSyntaxNode null() { return ParsedRawSyntaxNode(); }
-
-  ~ParsedRawSyntaxNode() {
-    assert(ensureDataIsNotRecorded() && "recorded data is being destructed");
-  }
-
-  // MARK: - Retrieving node kind
-
-  /// Returns the type of this node (recorded, deferred layout, deferred token,
-  /// null).
-  DataKind getDataKind() const { return Data.getKind(); }
-
-  bool isNull() const { return getDataKind() == DataKind::Null; }
-  bool isRecorded() const { return getDataKind() == DataKind::Recorded; }
-  bool isDeferredLayout() const {
-    return getDataKind() == DataKind::DeferredLayout;
-  }
-  bool isDeferredToken() const {
-    return getDataKind() == DataKind::DeferredToken;
-  }
-
-  // MARK: - Retrieving opaque data
-
-  /// Returns the opaque data of this node, assuming that it is deferred. This
-  /// must be interpreted by the \c SyntaxParseAction, which likely also needs
-  /// the node type (layout or token) to interpret the data.
-  /// The data opaque data returned by this function *must not* be used to
-  /// record the node, only to insepect it.
-  OpaqueSyntaxNode getUnsafeDeferredOpaqueData() const {
-    assert(isDeferredLayout() || isDeferredToken());
-    return Data.getOpaque();
-  }
-
-  /// Return the opaque data of this node and reset it.
-  OpaqueSyntaxNode takeData() {
-    OpaqueSyntaxNode Data = this->Data.getOpaque();
-    reset();
-    return Data;
-  }
-
-  RecordedOrDeferredNode takeRecordedOrDeferredNode() {
-    RecordedOrDeferredNode Data = this->Data;
-    reset();
-    return Data;
-  }
-
-  // MARK: - Retrieving additional node info
-
-  syntax::SyntaxKind getKind() const { return syntax::SyntaxKind(SynKind); }
-  tok getTokenKind() const { return tok(TokKind); }
-
-  bool isToken() const {
-    return getKind() == syntax::SyntaxKind::Token;
-  }
-  bool isToken(tok tokKind) const {
-    return getTokenKind() == tokKind;
-  }
-  bool isMissing() const { return IsMissing; }
-
-#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-  /// Returns the range of this node including leading and trailing trivia.
-  ///
-  /// This method is only present if \c ParsedRawSyntaxNode is keeping track
-  /// of its range to verify element ranges.
-  CharSourceRange getRange() const { return Range; }
-#endif
-
-  size_t
-  getDeferredNumChildren(const SyntaxParsingContext *SyntaxContext) const;
-
-  /// If this node is a deferred layout node, return the child at index \p
-  /// ChildIndex.
-  /// Note that this may be an expensive operation since the \c
-  /// SyntaxParseAction, which created the node (implicitly passed via the
-  /// \p SyntaxContext) needs to be consulted to retrieve the child.
+  /// The provided \p elements are an exact layout appropriate for the syntax
+  /// \p kind. Missing optional elements are represented with a null
+  /// ParsedRawSyntaxNode object.
   ParsedRawSyntaxNode
-  getDeferredChild(size_t ChildIndex,
-                   const SyntaxParsingContext *SyntaxContext) const;
-
-  // MARK: - Miscellaneous
-
-  void reset() {
-    Data = RecordedOrDeferredNode(nullptr, DataKind::Null);
-    SynKind = uint16_t(syntax::SyntaxKind::Unknown);
-    TokKind = uint16_t(tok::unknown);
-    IsMissing = false;
+  recordRawSyntax(syntax::SyntaxKind kind,
+                  MutableArrayRef<ParsedRawSyntaxNode> elements) {
+    assert(kind != syntax::SyntaxKind::Token &&
+           "Use recordToken to record a token");
 #ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-    Range = CharSourceRange();
+    auto range = ParsedRawSyntaxRecorder::verifyElementRanges(elements);
 #endif
+
+    SmallVector<OpaqueSyntaxNode, 16> subnodes;
+    if (!elements.empty()) {
+      for (auto &subnode : elements) {
+        switch (subnode.getDataKind()) {
+        case RecordedOrDeferredNode::Kind::Null:
+          subnodes.push_back(nullptr);
+          break;
+        case RecordedOrDeferredNode::Kind::Recorded:
+          subnodes.push_back(subnode.takeData());
+          break;
+        case RecordedOrDeferredNode::Kind::DeferredLayout:
+        case RecordedOrDeferredNode::Kind::DeferredToken: {
+          auto recorded = recordDeferredNode(subnode);
+          subnodes.push_back(recorded.takeData());
+          break;
+        }
+        }
+      }
+    }
+    OpaqueSyntaxNode n = SPActions->recordRawSyntax(kind, subnodes);
+    return makeParsedRawSyntaxNode(n, kind, tok::NUM_TOKENS,
+                                   ParsedRawSyntaxNode::DataKind::Recorded,
+                                   /*IsMissing=*/false, range);
   }
 
-  ParsedRawSyntaxNode unsafeCopy() const {
-    ParsedRawSyntaxNode copy;
-    copy.Data = Data;
+  /// Record a raw syntax collecton without eny elements. \p loc can be invalid
+  /// or an approximate location of where an element of the collection would be
+  /// if not missing.
+  ParsedRawSyntaxNode recordEmptyRawSyntaxCollection(syntax::SyntaxKind kind,
+                                                     SourceLoc loc);
+
+  /// Form a deferred syntax layout node.
+  /// All nodes in \p deferred nodes must be deferred. Otherwise, we'd have a
+  /// deferred layout node with recorded child nodes. Should we decide to
+  /// discard the deferred layout node, we would also need to discard its
+  /// recorded children, which cannot be done.
+  ParsedRawSyntaxNode
+  makeDeferred(syntax::SyntaxKind k,
+               MutableArrayRef<ParsedRawSyntaxNode> deferredNodes,
+               SyntaxParsingContext &ctx) {
 #ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
-    copy.Range = Range;
-#endif
-    copy.SynKind = SynKind;
-    copy.TokKind = TokKind;
-    copy.IsMissing = IsMissing;
-    return copy;
-  }
-
-#ifndef NDEBUG
-  bool ensureDataIsNotRecorded() {
-    if (getDataKind() != DataKind::Recorded)
-      return true;
-    llvm::dbgs() << "Leaking node: ";
-    dump(llvm::dbgs());
-    llvm::dbgs() << "\n";
-    return false;
-  }
+    auto range = ParsedRawSyntaxRecorder::verifyElementRanges(deferredNodes);
 #endif
 
-  // MARK: - Printing
+    assert(llvm::none_of(deferredNodes, [](const ParsedRawSyntaxNode &node) {
+      return node.isRecorded();
+    }) && "Cannot create a deferred layout node that has recorded children");
 
-  /// Dump this piece of syntax recursively for debugging or testing.
-  SWIFT_DEBUG_DUMP;
+    auto data =
+        SPActions->makeDeferredLayout(k, /*IsMissing=*/false, deferredNodes);
+    return makeParsedRawSyntaxNode(
+        data, k, tok::NUM_TOKENS, ParsedRawSyntaxNode::DataKind::DeferredLayout,
+        /*IsMissing=*/false, range);
+  }
 
-  /// Dump this piece of syntax recursively. If \p Context is passed, this
-  /// method is also able to traverse its children and dump them.
-  void dump(raw_ostream &OS, const SyntaxParsingContext *Context = nullptr,
-            unsigned Indent = 0) const;
+  /// Form a deferred token node.
+  ParsedRawSyntaxNode makeDeferred(Token tok, StringRef leadingTrivia,
+                                   StringRef trailingTrivia) {
+    CharSourceRange tokRange = tok.getRange();
+    CharSourceRange RangeWithTrivia = CharSourceRange(
+        tokRange.getStart().getAdvancedLoc(-leadingTrivia.size()),
+        (unsigned)leadingTrivia.size() + tokRange.getByteLength() +
+            (unsigned)trailingTrivia.size());
+    auto Data = SPActions->makeDeferredToken(tok.getKind(), leadingTrivia,
+                                             trailingTrivia, RangeWithTrivia,
+                                             /*IsMissing=*/false);
+    return makeParsedRawSyntaxNode(Data, syntax::SyntaxKind::Token,
+                                   tok.getKind(),
+                                   ParsedRawSyntaxNode::DataKind::DeferredToken,
+                                   /*IsMissing=*/false, RangeWithTrivia);
+  }
+
+  /// Form a deferred missing token node.
+  ParsedRawSyntaxNode makeDeferredMissing(tok tokKind, SourceLoc loc);
+
+  /// Used for incremental re-parsing.
+  ParseLookupResult lookupNode(size_t lexerOffset, SourceLoc loc,
+                               syntax::SyntaxKind kind);
+
+  /// For a deferred layout node \p parent, retrieve the deferred child node
+  /// at \p ChildIndex.
+  ParsedRawSyntaxNode getDeferredChild(const ParsedRawSyntaxNode &parent,
+                                       size_t ChildIndex) const;
+
+  /// For a deferred layout node \p node, retrieve the number of children.
+  size_t getDeferredNumChildren(const ParsedRawSyntaxNode &node) const;
+
+#ifdef PARSEDRAWSYNTAXNODE_VERIFY_RANGES
+  /// Verify that the ranges of \p elements are all consecutive and return the
+  /// range spanned by all \p elements.
+  static CharSourceRange
+  verifyElementRanges(ArrayRef<ParsedRawSyntaxNode> elements);
+#endif
 };
 
 } // end namespace swift
 
-#endif
+#endif // SWIFT_PARSE_PARSEDRAWSYNTAXRECORDER_H
