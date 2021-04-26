@@ -5094,6 +5094,12 @@ SolutionApplicationTarget::SolutionApplicationTarget(
   expression.initialization.patternBindingIndex = 0;
 }
 
+// IMPORTANT SOLUTION APPLICATION TARGET IS USING buildPropertyWrapperInitCall
+//THIS THING CALLED SOLUTIONAPPLICATIONTARGET RECORDS INNERMOST EXPRESSION WITH WRAPPEDVALUE TYPE IT JUST RECORDS A BUNCH OF STUFF ABOUT THE TYPE IT HAS A BUNCH OF INFO ABOUT HOW TO APPLY SOLUTION TO A TYPE CHECKER TO A TARGET
+//PUT ARGS IN WRAPPERVALUE AND SEE FROM THERE AND SEE WHAT’S GOING ON ADD COMMENTS WHERE YOU SEE THINGS ARE A LITTLE BARE IN TERMS OF EXPLAINING WHAT SYNTHESIZES INITIALIZER EXPRESSION HOW TO DETECT OTHER FAILURE MESSAGES A CASE WHERE IT’S A PRPERTY WRAPPER
+
+//solutionapplicationtarget which basically tries to get the proper initializer back from the typchecker from wthin the constraing system-> type checker’s buildpropertywrapperwrappedvaluecall (which actually has a range representing the locaton of the types for the wrapper attributes and checks what type of initializer we are using, in this case it’s a nowrappedvalue initializer-> goes back and sets the semantic initializer to the backing initializer we found from the buildpropertywrapperwrappedvaluecall … for whatever reason having a hard time after that to actually hop into the diagnostic, I found where the diagnostic is MissingArgumentsFailure IN THERE 
+
 void SolutionApplicationTarget::maybeApplyPropertyWrapper() {
   assert(kind == Kind::expression);
   assert(expression.contextualPurpose == CTP_Initialization);

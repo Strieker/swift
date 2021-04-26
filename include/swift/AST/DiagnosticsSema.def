@@ -1240,7 +1240,9 @@ ERROR(instance_member_in_default_parameter,none,
 ERROR(missing_argument_named,none,
       "missing argument for parameter %0 in call", (Identifier))
 ERROR(missing_argument_positional,none,
-      "missing argument for parameter #%0 in call", (unsigned))
+      // "missing argument for parameter #%0 in %select{call|property wrapper initialization}1; "
+      // "you provided %2 for argument labeled %3 but provided no value for argument labeled %4", (unsigned, bool, Expr, Identifier, Identifier))
+      "missing argument for parameter #%0 in %select{call|property wrapper initialization}1", (unsigned, bool))
 ERROR(missing_arguments_in_call,none,
       "missing arguments for parameters %0 in call", (StringRef))
 ERROR(extra_argument_named,none,
