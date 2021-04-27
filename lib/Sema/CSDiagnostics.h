@@ -1394,6 +1394,10 @@ private:
   /// an implicit call to a property wrapper initializer e.g.
   /// `@Foo(answer: 42) var question = "ultimate question"`
   bool isPropertyWrapperInitialization() const;
+    
+//  /// Gather a list of argument labels from a property wrapper initialization
+//  MutableArrayRef<Identifier>
+//    getPropertyWrapperInitializationArgumentLabels() const;
 
   /// Gather information associated with expression that represents
   /// a call - function, arguments, # of arguments and the position of
